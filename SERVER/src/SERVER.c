@@ -88,57 +88,53 @@ int main(void) {
 		}
 
 	//receive string for client
-		while(1) {
-			unsigned int client_Addr_Length;
-			struct sockaddr_in echoClien;
-			msg m;
-			int recvMsg_size;
-			// get msg from client
-			do{
-				client_Addr_Length = sizeof(echoClien);
-				if ((recvMsg_size = recvfrom(my_socket, &m, ECHOMAX, 0, (SOCKADDR*)&echoClien, &client_Addr_Length)) == -1) {
-					errorhandler("\nConnection closed:: Data reception failed or connection closed prematurely\n\n");
+		unsigned int client_Addr_Length;
+		struct sockaddr_in echoClien;
+		msg m;
+		int recvMsg_size;
+		// get msg from client
+		do{
+			client_Addr_Length = sizeof(echoClien);
+			if ((recvMsg_size = recvfrom(my_socket, &m, ECHOMAX, 0, (SOCKADDR*)&echoClien, &client_Addr_Length)) == -1) {
+				errorhandler("\nConnection closed:: Data reception failed or connection closed prematurely\n\n");
+				break;
+			}
+			char* result = (char *) calloc(atoi(m.number), sizeof(char *));
+			if (m.type[0] != 'q'){
+				printf("New request from %s:%d\n", inet_ntoa(echoClien.sin_addr), echoClien.sin_port);
+				if (m.type[0] == 'n')
+					result = generate_numeric(atoi(m.number));
+				else if (m.type[0] == 'a')
+					result = generate_alpha(atoi(m.number));
+				else if (m.type[0] == 'm')
+					result = generate_mixed(atoi(m.number));
+				else if (m.type[0] == 's')
+					result = generate_sicure(atoi(m.number));
+				else if (m.type[0] == 'u')
+					result = generate_unambiguous(atoi(m.number));
+
+				//send string echo to client
+				if (sendto(my_socket, result, *m.number, 0, (struct sockaddr *)&echoClien, sizeof(echoClien)) != *m.number)
+					errorhandler("sendto() sent different number of bytes than expected");
+
+				printf("\tPassword generation successful\n\n");
+				free(result);
+			}
+			else{
+				// send "Connection Closed..." to client
+				result = "Connection Closed...";
+				if (sendto(my_socket, result, strlen(result), 0, (struct sockaddr *)&echoClien, sizeof(echoClien)) != strlen(result)){
+					errorhandler("sendto() sent different number of bytes than expected");
+					closesocket(my_socket);
+					clearwinsock();
 					break;
 				}
 
-				char* result = (char *) calloc(atoi(m.number), sizeof(char *));
-				if (m.type[0] != 'q'){
-					printf("New request from %s:%d\n", inet_ntoa(echoClien.sin_addr), echoClien.sin_port);
-					if (m.type[0] == 'n')
-						result = generate_numeric(atoi(m.number));
-					else if (m.type[0] == 'a')
-						result = generate_alpha(atoi(m.number));
-					else if (m.type[0] == 'm')
-						result = generate_mixed(atoi(m.number));
-					else if (m.type[0] == 's')
-						result = generate_sicure(atoi(m.number));
-					else if (m.type[0] == 'u')
-						result = generate_unambiguous(atoi(m.number));
-
-					//send string echo to client
-					if (sendto(my_socket, result, *m.number, 0, (struct sockaddr *)&echoClien, sizeof(echoClien)) != *m.number)
-						errorhandler("sendto() sent different number of bytes than expected");
-
-					printf("\tPassword generation successful\n\n");
-					free(result);
-				}
-				else{
-					// send "Connection Closed..." to client
-					result = "Connection Closed...";
-					if (sendto(my_socket, result, strlen(result), 0, (struct sockaddr *)&echoClien, sizeof(echoClien)) != strlen(result)){
-						errorhandler("sendto() sent different number of bytes than expected");
-						closesocket(my_socket);
-						clearwinsock();
-						break;
-					}
-
-					printf("Connection from %s:%d CLOSED\n\n", inet_ntoa(echoClien.sin_addr), echoClien.sin_port);
-					break;
-				}
+				printf("Connection from %s:%d CLOSED\n\n", inet_ntoa(echoClien.sin_addr), echoClien.sin_port);
+				break;
 			}
-			while(1);
-
-			}
+		}
+		while(1);
 
 		closesocket(my_socket);
 		clearwinsock();
